@@ -17,7 +17,13 @@
         "php": ">=7.4.0",
         "yiisoft/yii2": "~2.0.45",
         "yiisoft/yii2-bootstrap5": "~2.0.2",
-        "yiisoft/yii2-symfonymailer": "~2.0.3"
+        "yiisoft/yii2-symfonymailer": "~2.0.3",
+        "codemix/yii2-localeurls": "^1.8",
+        "creocoder/yii2-translateable": "^1.0",
+        "guzzlehttp/guzzle": "^7.8",
+        "yiisoft/yii2-httpclient": "^2.0",
+        "yiisoft/yii-swagger": "^1.0 || ^2.0",
+        "yii2mod/yii2-swagger": "*"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",
