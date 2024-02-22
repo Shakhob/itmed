@@ -10,42 +10,11 @@ use yii\helpers\Url;
 use yii\httpclient\Client;
 use yii\rest\ActiveController;
 use yii\rest\Controller;
-/**
- * @OA\Info(title="My First API", version="0.1")
- */
+
 class UserController extends Controller
 {
-    public function actions(): array
-    {
-        return [
-            'docs' => [
-                'class' => 'yii2mod\swagger\SwaggerUIRenderer',
-                'restUrl' => Url::to(['site/json-schema']),
-            ],
-            'json-schema' => [
-                'class' => 'yii2mod\swagger\OpenAPIRenderer',
-                // Тhe list of directories that contains the swagger annotations.
-                'scanDir' => [
-                    Yii::getAlias('@backend/controllers'),
-                    Yii::getAlias('@common/models'),
-                ],
-            ],
-            'error' => [
-                'class' => 'yii\web\ErrorAction',
-            ],
-        ];
-    }
-    /**
-     * @SWG\Get(path="/user",
-     *     tags={"User"},
-     *     summary="Retrieves the collection of User resources.",
-     *     @SWG\Response(
-     *         response = 200,
-     *         description = "User collection response",
-     *         @SWG\Schema(ref = "#/definitions/User")
-     *     ),
-     * )
-     */
+
+
     public function actionIndex()
     {
         $headers = Yii::$app->getRequest()->getHeaders();
@@ -53,52 +22,13 @@ class UserController extends Controller
             'query'=>User::find()
         ]);
     }
-    /**
-     * @OA\Post(
-     *     path="/user/auth/{token}",
-     *     summary="Аутентификация пользователя по токену",
-     *     tags={"User"},
-     *     @OA\Parameter(
-     *         name="token",
-     *         in="path",
-     *         required=true,
-     *         description="Токен пользователя",
-     *         @OA\Schema(
-     *             type="string"
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Успешный ответ",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="user_token", type="string")
-     *         )
-     *     )
-     * )
-     */
+
     public function actionAuth($token)
     {
         $this->getUserAndSave($token);
     }
 
-    /**
-     * @OA\Post(
-     *     path="/user/login",
-     *     summary="Аутентификация пользователя",
-     *     tags={"User"},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Успешный ответ",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="user_token", type="string")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Неверные учетные данные"
-     *     )
-     * )
-     */
+
     public function actionLogin()
     {
         $request = Yii::$app->request;
@@ -118,18 +48,7 @@ class UserController extends Controller
             'user_token' => $userToken->token,
         ]);
     }
-    /**
-     * @OA\Put(
-     *     path="/user/update",
-     *     summary="Обновить пользователя",
-     *     tags={"User"},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Успешный ответ",
-     *         @OA\JsonContent(ref="#/components/schemas/User")
-     *     )
-     * )
-     */
+
     public function actionUpdate()
     {
         return new ActiveDataProvider([
@@ -187,5 +106,19 @@ class UserController extends Controller
         } catch (\GuzzleHttp\Exception\RequestException $e) {
             Yii::$app->session->setFlash('error', 'Ошибка при выполнении запроса: ' . $e->getMessage());
         }
+    }
+
+    private function getStatusCodeMessage($statusCode)
+    {
+        $codes = [
+            400 => 'Bad Request',
+            401 => 'Unauthorized',
+            403 => 'Forbidden',
+            404 => 'Not Found',
+            500 => 'Internal Server Error',
+            // Другие коды состояния HTTP
+        ];
+
+        return isset($codes[$statusCode]) ? $codes[$statusCode] : 'Unknown Status Code';
     }
 }

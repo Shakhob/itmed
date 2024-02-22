@@ -128,17 +128,7 @@ return [
                         'user',
                         'post',
                         'auth',
-
                     ]
-                ],
-                [
-                    'class' => 'yii\rest\UrlRule',
-                    'controller' => ['swagger/default'],
-                    'extraPatterns' => [
-                        'GET json-url' => 'json-url'
-                    ],
-                    'prefix' => 'swagger',
-                    'pluralize' => false,
                 ],
             ],
 
