@@ -10,6 +10,7 @@ use yii\helpers\Url;
 use yii\httpclient\Client;
 use yii\rest\ActiveController;
 use yii\rest\Controller;
+use yii\web\UnauthorizedHttpException;
 
 class UserController extends Controller
 {
@@ -17,14 +18,17 @@ class UserController extends Controller
 
     public function actionIndex()
     {
-        $headers = Yii::$app->getRequest()->getHeaders();
-        return new ActiveDataProvider([
-            'query'=>User::find()
-        ]);
+        $accessToken = $this->getToken();
+        echo "<pre>"; print_r($accessToken); echo "</pre>";DIE;
+//        $headers = Yii::$app->getRequest()->getHeaders();
+//        return new ActiveDataProvider([
+//            'query'=>User::find()
+//        ]);
     }
 
     public function actionAuth($token)
     {
+        $headers = Yii::$app->getRequest()->getHeaders();
         $this->getUserAndSave($token);
     }
 
@@ -45,10 +49,61 @@ class UserController extends Controller
         $expiresIn = 3600*6; // Token expires in 1 hour
         $userToken = UserToken::createToken($user->id, $scope, $expiresIn);
         return $this->asJson([
+            'role' => $user->role,
             'user_token' => $userToken->token,
         ]);
     }
 
+    public function actionRefresh()
+    {
+        $refresh_token = Yii::$app->request->headers->get('Authorization');
+        $refresh_token = str_replace("Bearer ", '', $refresh_token) ;
+
+        if (!$refresh_token) {
+            throw new UnauthorizedHttpException('Token not provided.');
+        }
+
+        $user_refresh_token = UserToken::findOne(['refresh_token' => $refresh_token]);
+        if (!$user_refresh_token || $user_refresh_token->refreshTokenIsExpired()) {
+            throw new UnauthorizedHttpException('Invalid or expired token.');
+        }
+
+        $user = \backend\models\User::findOne($user_refresh_token->user_id);
+        $userTokenScope = $user_refresh_token->scope;
+
+        // Delete the expired token
+        $user_refresh_token->delete();
+
+        // Create a new token for the user
+        $expiresIn = 3600*6; // Token expires in 12 hour
+        $userToken = UserToken::createToken($user_refresh_token->user_id, $userTokenScope, $expiresIn);
+
+        return [
+            'role' => $user->role,
+            'user_token' => $userToken
+        ];
+    }
+    public function actionLogout()
+    {
+        $token = Yii::$app->request->headers->get('Authorization');
+
+        if (!$token) {
+            throw new UnauthorizedHttpException('Token not provided.');
+        }
+
+        $userToken = UserToken::findOne(['token' => $token]);
+
+        if (!$userToken) {
+            throw new UnauthorizedHttpException('Invalid token.');
+        }
+
+        // Delete the token
+        $userToken->delete();
+
+        return [
+            'message' => 'Logged out successfully.'
+        ];
+    }
     public function actionUpdate()
     {
         return new ActiveDataProvider([
@@ -76,10 +131,11 @@ class UserController extends Controller
                 $responseData = $response->getData();
 
                 // Проверяем, существует ли пользователь с указанным именем пользователя
-                $existingUser = \common\models\User::findByUsername($responseData['username']);
+                $existingUser = \common\models\User::findByUsername($responseData['identify']);
+//                echo "<pre>"; print_r($expiresIn->id); echo "</pre>";DIE;
                 if ($existingUser) {
                     $expiresIn = 3600*6; // Token expires in 1 hour
-                    $userToken = \backend\models\UserToken::createToken($expiresIn->id, $expiresIn->role, $expiresIn);
+                    $userToken = \backend\models\UserToken::createToken($existingUser->id, $existingUser->role, $expiresIn);
                     return $this->asJson([
                         'user_token' => $userToken->token,
                     ]);
@@ -101,10 +157,18 @@ class UserController extends Controller
                     }
                 }
             } else {
-                Yii::$app->session->setFlash('error', 'Ошибка при выполнении запроса: ' . $response->getStatusCode() . ' ' . $this->getStatusCodeMessage($response->getStatusCode()));
+                Yii::$app->response->setStatusCode(401);
+                return [
+                    'success' => false,
+                    'data' => 'Ошибка при выполнении запроса: ' . $response->getStatusCode()
+                ];
             }
         } catch (\GuzzleHttp\Exception\RequestException $e) {
-            Yii::$app->session->setFlash('error', 'Ошибка при выполнении запроса: ' . $e->getMessage());
+            Yii::$app->response->setStatusCode(401);
+            return [
+                'success' => false,
+                'data' =>  'Ошибка при выполнении запроса: ' . $e->getMessage()
+            ];
         }
     }
 
@@ -119,6 +183,6 @@ class UserController extends Controller
             // Другие коды состояния HTTP
         ];
 
-        return isset($codes[$statusCode]) ? $codes[$statusCode] : 'Unknown Status Code';
+        return $codes[$statusCode] ?? 'Unknown Status Code';
     }
 }
